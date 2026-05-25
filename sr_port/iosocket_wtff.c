@@ -1,0 +1,91 @@
+/****************************************************************
+ *								*
+ * Copyright (c) 2001-2023 Fidelity National Information	*
+ * Services, Inc. and/or its subsidiaries. All rights reserved.	*
+ *								*
+ *	This source code contains the intellectual property	*
+ *	of its copyright holder(s), and is made available	*
+ *	under a license.  If you do not know the terms of	*
+ *	the license, please stop and do not read further.	*
+ *								*
+ ****************************************************************/
+
+/* iosocket_wtff.c */
+
+#include "mdef.h"
+#include "gtm_socket.h"
+#include "gtm_inet.h"
+#include "have_crit.h"
+#include "deferred_events_queue.h"
+#include "io.h"
+#include "gt_timer.h"
+#include "iosocketdef.h"
+#include "send_msg.h"
+#include "error.h"
+#include "svnames.h"
+#include "op.h"
+#include "gtmio.h"
+#include "util.h"
+
+GBLREF io_pair		io_curr_device;
+GBLREF boolean_t	hup_on, prin_in_dev_failure, prin_out_dev_failure;
+GBLREF int4		exi_condition;
+GBLREF mval		dollar_zstatus;
+#ifndef VMS
+GBLREF io_pair		io_std_device;
+#endif
+
+error_def(ERR_CURRSOCKOFR);
+error_def(ERR_NOPRINCIO);
+error_def(ERR_NOSOCKETINDEV);
+error_def(ERR_SOCKHANGUP);
+error_def(ERR_SOCKPASSDATAMIX);
+
+void iosocket_wtff(void)
+{
+	io_desc		*iod;
+	socket_struct	*socketptr;
+	d_socket_struct	*dsocketptr;
+	boolean_t	ch_set;
+
+	iod = io_curr_device.out;
+	if (ERR_SOCKHANGUP == error_condition)
+	{
+		SOCKHUP_NOPRINCIO_CHECK(TRUE);
+		return;
+	}
+	ESTABLISH_GTMIO_CH(&iod->pair, ch_set);
+	assert(gtmsocket == iod->type);
+	iod->esc_state = START;
+	dsocketptr = (d_socket_struct *)iod->dev_sp;
+	if (0 >= dsocketptr->n_socket)
+	{
+#		ifndef VMS
+		if (iod == io_std_device.out)
+			ionl_wtff();
+		else
+#		endif
+			RTS_ERROR_CSA_ABT(NULL, VARLSTCNT(1) ERR_NOSOCKETINDEV);
+		REVERT_GTMIO_CH(&iod->pair, ch_set);
+		return;
+	}
+	if (dsocketptr->current_socket >= dsocketptr->n_socket)
+	{
+		rts_error_csa(CSA_ARG(NULL) VARLSTCNT(4) ERR_CURRSOCKOFR, 2, dsocketptr->current_socket, dsocketptr->n_socket);
+		return;
+	}
+	socketptr = dsocketptr->socket[dsocketptr->current_socket];
+	ENSURE_DATA_SOCKET(socketptr);
+	if (socketptr->ozff.len)
+		iosocket_write_real(&socketptr->ozff, FALSE);
+	else if (socketptr->nonblocked_output)
+	{	/* treat WRITE # when zff not set as a successful write */
+		socketptr->lastarg_sent = 0;
+		socketptr->args_written++;
+	}
+	iosocket_flush(iod);
+	iod->dollar.x = 0;
+	iod->dollar.y = 0;
+	REVERT_GTMIO_CH(&iod->pair, ch_set);
+	return;
+}
