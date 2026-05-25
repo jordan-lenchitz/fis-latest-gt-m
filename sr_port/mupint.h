@@ -1,0 +1,89 @@
+/****************************************************************
+ *								*
+ * Copyright (c) 2001-2025 Fidelity National Information	*
+ * Services, Inc. and/or its subsidiaries. All rights reserved.	*
+ *								*
+ *	This source code contains the intellectual property	*
+ *	of its copyright holder(s), and is made available	*
+ *	under a license.  If you do not know the terms of	*
+ *	the license, please stop and do not read further.	*
+ *								*
+ ****************************************************************/
+
+#ifndef MUPINT_H
+#define MUPINT_H
+
+#define	RETURN_AFTER_DB_OPEN_FALSE	FALSE
+#define	RETURN_AFTER_DB_OPEN_TRUE	TRUE
+
+#define DEFAULT_ADJACENCY 10
+#define CHECK_ADJACENCY(BLK, LVL, CNTR)								\
+{													\
+	GBLREF int			muint_adj;							\
+	GBLREF int4			mu_int_adj[];							\
+	GBLREF block_id			mu_int_adj_prev[];						\
+													\
+	if (mu_int_adj_prev[LVL] <= BLK + muint_adj && mu_int_adj_prev[LVL] >= BLK - muint_adj)	\
+		CNTR += 1;									\
+	mu_int_adj_prev[LVL] = BLK;									\
+}
+
+/* In case of an error, un-freeze the region before returning if we had done the region_freeze
+ * in mu_int_reg for a read_only process.  (Moved from mu_int_reg.c as ss_initiate.c now also uses it)
+ */
+#define UNFREEZE_REGION_IF_NEEDED(CSD, REG)					\
+{										\
+	if (process_id == (CSD)->image_count)					\
+	{									\
+		assert((REG)->read_only);					\
+		region_freeze((REG), FALSE, FALSE, FALSE, FALSE, FALSE);	\
+	}									\
+}
+
+typedef	struct global_list_struct
+{
+	block_id			root;
+	struct global_list_struct	*link;
+	block_id			path[MAX_BT_DEPTH + 1];
+	uint4 				offset[MAX_BT_DEPTH + 1];
+	unsigned char			nct;
+	unsigned char			act;
+	unsigned char			ver;
+	char				key[MAX_MIDENT_LEN + 1];	/* max key length plus one for printf terminator */
+	int4				keysize;			/* length of the key */
+} global_list;
+
+enum sn_type
+{
+        SN_NOT = 0,
+        SPAN_NODE,
+        SN_CHUNK
+};
+
+typedef struct struct_spanode_integ{
+	uint4		sn_type;           		/* 0: not in spanning node. 1: spanning node. 2:spanning fragment*/
+	uint4		span_prev_blk;          	/* Left sibling of current block of spanning node */
+	uint4		span_blk_cnt;        		/* Count of the blocks of spanning node seen so far */
+	uint4		span_tot_blks;        		/* Total blks in the spanning nodes to be integ-checked */
+	uint4		span_node_sz;        		/* Size of the spanning node value */
+	uint4		span_frag_off;			/* Spanning node fragment offset */
+	uint4		key_len;			/* Length of the key of spanning node */
+	uint4		val_len;			/* Length of the val of spanning node */
+	uint4		sn_cnt;				/* Spanning node count */
+	uint4		sn_blk_cnt;			/* Count of the blocks used by the spanning node */
+unsigned char	span_node_buf[MAX_KEY_SZ];	/* Spanning node key */
+}span_node_integ;
+
+boolean_t mu_int_blk(block_id blk, unsigned char level, boolean_t is_root, unsigned char *bot_key,
+	int bot_len, unsigned char *top_key, int top_len, boolean_t eb_ok, enum db_ver ondsk_blkver,
+	boolean_t retry_block_from_buffer);
+boolean_t mu_int_fhead(void);
+boolean_t mu_int_init(void);
+void mu_int_reg(gd_region *reg, boolean_t *return_value, boolean_t return_after_open);
+uchar_ptr_t mu_int_read(block_id blk, enum db_ver *ondsk_blkver, uchar_ptr_t *free_buff);
+uchar_ptr_t mu_int_read_buffer(block_id blk, enum db_ver *ondsk_blkver, uchar_ptr_t *free_buff);
+void mu_int_err(int err, boolean_t do_path, boolean_t do_range, unsigned char *bot, int has_bot,
+	unsigned char *top, int has_top, unsigned int level);
+void mu_int_maps(void);
+void mu_int_write(block_id blk, uchar_ptr_t ptr);
+#endif
