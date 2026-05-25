@@ -1,0 +1,257 @@
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;								;
+; Copyright (c) 2016-2025 Fidelity National Information		;
+; Services, Inc. and/or its subsidiaries. All rights reserved.	;
+;								;
+;	This source code contains the intellectual property	;
+;	of its copyright holder(s), and is made available	;
+;	under a license.  If you do not know the terms of	;
+;	the license, please stop and do not read further.	;
+;								;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; Routine to demonstrate reading of fileheader fields.
+;
+dumpfhead(dbname)
+	new $etrap
+	new (dbname,debug)
+	set $etrap="quit"	; defer error handling to the caller
+	if '$data(debug) new debug set debug=0
+	do getfields(.record,dbname)
+	zwrite record
+	quit
+
+;
+; Routine to grab the fields and return them in the passed-in array
+;
+getfields(fldarray,dbname)
+	new $etrap
+	set $etrap="quit:$quit """" quit"		; Defer error handling to the caller
+	new BigEndian,Endian,FALSE,Hex,HexDigits,LittleEndian,NullChar,TRUE
+	new endian,fhead,fldstring,flddim,fldidx,fldlen,fldname,fldnum,fldoff
+	new fldraw,fldtype,gtmhdwr,gtmos,gtmver,gtmzv,label,offset,platformendian,saveIO
+	new skey,typeconvert,x,$zgbldir
+	kill fldarray			; Clean array for new insertions
+	;
+	; Initialize field type translation to simple types
+	;
+	set typeconvert("boolean_t")="int"
+	set typeconvert("char")="string"
+	set typeconvert("int")="int"
+	set typeconvert("int1")="int"
+	set typeconvert("int2")="int"
+	set typeconvert("int4")="int"
+	set typeconvert("int64_t")="hex"
+	set typeconvert("gtm_int8")="int"
+	set typeconvert("gtm_timet")="gtm_timet"	; pass through unchanged to signal dumping as a date string
+	set typeconvert("long")="hex"
+	set typeconvert("short")="int"
+	set typeconvert("size_t")="hex"
+	set typeconvert("ssize_t")="hex"
+	set typeconvert("uint1")="uint"
+	set typeconvert("uint2")="uint"
+	set typeconvert("uint64_t")="hex"
+	set typeconvert("unsigned")="uint"
+	set typeconvert("unsigned-char")="string"
+	set typeconvert("unsigned-int")="uint"
+	set typeconvert("unsigned-int1")="uint"
+	set typeconvert("unsigned-long")="hex"
+	set typeconvert("unsigned-short")="uint"
+	set typeconvert("atomic_uint_least64_t")="hex"
+	set typeconvert("uint_least64_t")="hex"
+	;
+	; Other initializations
+	;
+	set Hex(0)=1
+	for x=1:1:16 set Hex(x)=Hex(x-1)*16
+	set HexDigits="0123456789ABCDEF"
+	set TRUE=1,FALSE=0,BigEndian=1,LittleEndian=0
+	set platformendian("AIX","RS6000")=BigEndian
+	set platformendian("Linux","x86")=LittleEndian
+	set platformendian("Linux","x86_64")=LittleEndian
+	set platformendian("Solaris","SPARC")=BigEndian
+	set gtmzv=$ZVersion,gtmver=$ZPiece(gtmzv," ",2),gtmos=$ZPiece(gtmzv," ",3),gtmhdwr=$ZPiece(gtmzv," ",4)
+	set Endian=platformendian(gtmos,gtmhdwr)
+	set NullChar=$zchar(0)			; 0x00
+	;
+	; Read database fileheader
+	;
+	set saveIO=$IO
+	open dbname:(readonly:fixed:recordsize=8192:chset="M":nowrap:exception="do badopen")
+	use dbname:exception="goto eof:$zeof,filerr"
+	read fhead#8192			; Read 8K of fileheader
+	close dbname
+	use saveIO
+	if $zlength(fhead)'=8192 do
+	. write "GETFIELDS: Error - unable to read fileheader from ",dbname,!
+	. write:0'=$data(fhead) "GETFIELDS: Read only ",$zlength(fhead)," bytes",!
+	. set $etrap="zgoto 0"
+	. zhalt 1
+	;
+	; Determine if this is a valid database header. Note that we don't
+	; even need to go into the ^gtmtypes database because the header is
+	; always at offset 0, with len=12
+	;
+	set label=$$formatfld($zextract(fhead,1,12),"char")
+	if ((label'["GDSDYNUNX03")&(label'["GDSDYNUNX04")) do
+	. write "GETFIELDS: Error - invalid fileheader format from ",dbname,!
+	. set $etrap="zgoto 0"
+	. zhalt 1
+	;
+	; Now parse out the fields
+	;
+	set $zgbldir="$gtm_dist/gtmhelp.gld"
+	if (label["GDSDYNUNX04") set skey="sgmnt_data"
+	else  if (label["GDSDYNUNX03") set skey="v6_sgmnt_data"
+	for fldnum=1:1:^gtmtypes(skey,0) do
+	. set fldtype=^gtmtypes(skey,fldnum,"type")
+	. quit:(0=$data(typeconvert(fldtype)))		; Ignore unknown types (likely a sub-struct header)
+	. set fldname=^gtmtypes(skey,fldnum,"name")
+	. if (label["GDSDYNUNX03") set fldname=$EXTRACT(fldname,4,$LENGTH(fldname))
+	. quit:(fldname["filler")
+	. set fldoff=^gtmtypes(skey,fldnum,"off")
+	. set fldlen=^gtmtypes(skey,fldnum,"len")
+	. set flddim=$get(^gtmtypes(skey,fldnum,"dim"),1)
+	. if (1=flddim) do
+	. . set fldarray(fldname)=$$formatfld($zextract(fhead,fldoff+1,fldoff+fldlen),fldtype)
+	. else  do  ; array handling, made to be similar to %PEEKBYNAME() output
+	. . set fldlen=fldlen\flddim
+	. . set fldstring=$$formatfld($zextract(fhead,fldoff+1,fldoff+fldlen),fldtype)
+	. . for fldidx=1:1:flddim-1 do
+	. . . set offset=fldoff+(fldlen*fldidx)
+	. . . set fldstring=fldstring_","_$$formatfld($zextract(fhead,offset+1,offset+fldlen),fldtype)
+	. . set fldarray(fldname)=fldstring
+	quit:$quit "" quit
+
+eof
+	close dbname
+badopen
+	write "The file """,dbname,""" had error: "
+	set $etrap="zgoto 0"
+	zmessage +$zstatus
+	zhalt 1
+
+;
+; Routine to format fields into their proper format.
+;
+formatfld(fldval,fldtype)
+	set fldtype=typeconvert(fldtype)
+	quit:("int"=fldtype) $$BinToSInt(fldval)
+	quit:("uint"=fldtype) $$BinToUInt(fldval)
+	quit:("hex"=fldtype) $$BinToHex(fldval)
+	quit:("gtm_timet"=fldtype) $$BinToDateStr(fldval,0)	; Turn an epoch date into a ctime-like string
+	quit fldval
+
+;
+; This routine converts a Unix epoch value to an horolog, and returns a "ctime"-like
+; printable string such as "Sun Aug 15 13:37:32 2021".  It is set up to be called
+; automatically to dump values typed as "gtm_timet", but could be called for regular
+; time_t values, or anything else storing an epoch value.
+;
+; The problem complicating things is that epoch dates are reckoned in the GMT/UCT/Zulu timezone
+; while M uses Horolog dates reckoned in the local timezone.  Furthermore,
+; we do not, a priori, know the offset of the local timezone from GMT.  (The
+; TZ environment variable may not exist, and does not directly supply that
+; information if it does).
+;
+; Our strategy here then is to get both the current Epoch & Horolog times
+; and use that to compute the GMT offset which we can then apply before
+; converting our target epoch date to Horolog and rendering a date string.
+;
+; The basic identity we use here is that Epoch "0" == Horolog "47117,0" for GMT
+;
+; As a special case the epoch value '0' is rendered as "Never"
+;
+; If a GMT date string is desired, set the parameter gmt to 1.  This is probably
+; actually more useful in many real-world cases.
+;
+; @param bin -- A binary epoch value
+; @param gmt -- A flag value: 0 to return a date string in local time, 1 to return it in GMT
+; @return -- A date string in the format "Sun Aug 15 13:37:32 2021 [GMT]"
+;
+BinToDateStr(bin,gmt)
+	new epoch,i,binlen,horo,zulu,horod,horos,horoepoch,daysec,horobase,offset
+	new zlocal,zlocald,zlocals,daynames,monnames,datestr
+	set daysec=86400
+	set horobase=47117
+	set offset=0
+
+	set epoch=0,binlen=$ZLength(bin)
+	if Endian=BigEndian for i=binlen:-1:1 set epoch=$zascii(bin,i)*Hex((binlen-i)*2)+epoch
+	else  for i=1:1:binlen set epoch=$zascii(bin,i)*Hex((i-1)*2)+epoch
+
+	; If the file has never been (successfully) backed up and has a "0" epoch, render that as "Never"
+	quit:(epoch=0)&(gmt=0) "Never"
+
+	; Now we have our incoming epoch value in usable format
+	; Next, capture the current system Horolog & Epoch dates, taking care that both
+	; fall within the same second. (Also convert the zulu time from microseconds to seconds)
+	for i=1:1 set horo=$Horolog,zulu=$Zut\1000000 quit:horo=$Horolog
+
+	; Isolate the horolog day & second pieces and generate an epoch date from them.
+	; The difference between this constructed epoch and the real epoch is the timezone offset.
+	set horod=$piece(horo,",",1)
+	set horos=$piece(horo,",",2)
+	set horoepoch=((horod-horobase)*daysec)+horos
+	set:gmt=0 offset=horoepoch-zulu
+
+	; Apply the offset to the incoming epoch and create an horolog from it
+	set zlocal=epoch+offset
+	set zlocald=(zlocal\daysec)+47117
+	set zlocals=zlocal#daysec
+	set horolocal=zlocald_","_zlocals
+
+	; If we do not specify day and month names, we get upper case strings
+	set daynames="Sun,Mon,Tue,Wed,Thu,Fri,Sat"
+	set monnames="Jan,Feb,Mar,Apr,May,Jun,Jul,Aug,Sep,Oct,Nov,Dec"
+	set datestr=$zdate(horolocal,"DAY MON DD 24:60:SS YEAR",monnames,daynames)_" GMT"
+	set:gmt=0 datestr=$zdate(horolocal,"DAY MON DD 24:60:SS YEAR",monnames,daynames)
+	set:0=$extract(datestr,9) $extract(datestr,9)=" "
+	quit datestr
+
+;
+; Convert binary data of indeterminate length to a (printable) unsigned decimal value
+;
+BinToUInt(bin)
+	new num,i,binlen
+	set num=0,binlen=$ZLength(bin)
+	if Endian=BigEndian for i=binlen:-1:1 set num=$zascii(bin,i)*Hex((binlen-i)*2)+num
+	else  for i=1:1:binlen set num=$zascii(bin,i)*Hex((i-1)*2)+num
+	quit num
+
+;
+; Convert binary data of indeterminate length to a (printable) unsigned decimal value
+;
+BinToSInt(bin)
+	new num,i,binlen,sgntst,sign,fix
+	set num=0,binlen=$zlength(bin),sign=1,fix=0
+	set sgntst=NullChar_bin
+	if Endian=BigEndian do  ; See if we need to deal with a sign
+	. do:($zbitget(sgntst,1))
+	. . ;
+	. . ; Sign is set, need to generate twos-complement and remember to add "-" sign. Since we can't actually do the
+	. . ; +1 required by twos complement right now, remember to do it later after we do the numeric conversion.
+	. . ;
+	. . set bin=$zextract($zbitnot(sgntst),2,binlen+1)
+	. . set sign=-1,fix=1
+	. for i=binlen:-1:1 set num=$zascii(bin,i)*Hex((binlen-i)*2)+num
+	else  do
+	. do:($zbitget(sgntst,((binlen-1)*8)+1))  ; Sign is set, twos-complement and sign fixup.
+	. . set bin=$zextract($zbitnot(sgntst),2,binlen+1)
+	. . set sign=-1,fix=1
+	. for i=1:1:binlen set num=$zascii(bin,i)*Hex((i-1)*2)+num
+	quit (num+fix)*sign	       ; Important to apply fix before sign
+
+;
+; Convert binary data of indeterminate length to a (printable) hexadecimal value
+;
+BinToHex(bin,noendian)
+	new hex,i,binlen,num
+	set hex="",binlen=$zlength(bin)
+	if ((Endian=BigEndian)!($get(noendian,FALSE))) do
+	. for i=binlen:-1:1 do
+	. . set num=$zascii(bin,i),hex=$zextract(HexDigits,(num#16)+1)_hex,num=num\16,hex=$zextract(HexDigits,num+1)_hex
+	else  do
+	. for i=1:1:binlen do
+	. . set num=$zascii(bin,i),hex=$zextract(HexDigits,(num#16)+1)_hex,num=num\16,hex=$zextract(HexDigits,num+1)_hex
+	quit "0x"_hex
