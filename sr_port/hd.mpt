@@ -1,0 +1,27 @@
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;								;
+; Copyright (c) 1987-2019 Fidelity National Information		;
+; Services, Inc. and/or its subsidiaries. All rights reserved.	;
+;								;
+;	This source code contains the intellectual property	;
+;	of its copyright holder(s), and is made available	;
+;	under a license.  If you do not know the terms of	;
+;	the license, please stop and do not read further.	;
+;								;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+%HD	;GT.M %HD utility - hexadecimal to decimal conversion program
+	;invoke at INT with %HD in hexadecimal to return %HD in decimal
+	;invoke at FUNC as an extrinsic function
+	;if you make heavy use of this routine, consider $ZCALL
+	;
+	set %HD=$$FUNC(%HD)
+	quit
+INT	read !,"Hexidecimal: ",%HD set %HD=$$FUNC(%HD)
+	quit
+FUNC(h)
+	quit:"-"=$extract(h) ""		; 0>h risks NUMOFLOW
+	new c,d,dg,l
+	set d=0,h=$translate(h,"abcdef","ABCDEF"),l=$length(h)
+	if (15>l) for c=1:1:l set dg=$find("0123456789ABCDEF",$extract(h,c)) quit:'dg  set d=(d*16)+(dg-2)
+	else  quit $$CONVERTBASE^%CONVBASEUTIL(h,16,10)
+	quit d
