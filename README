@@ -22,11 +22,10 @@ to build gtm for linux do the following steps
    # optional if you installed gtm provide the directory path to cmake
    #   -d gtm_distpath=$gtm_dist
    #
-   # by default the build produces release versions of gtm to build a debug version of gtm supply the following parameter to cmake
+   # to build a debug version (default is release) supply the following parameter to cmake
    #     -d cmake_build_type=debug
    #
    # note that the cmake install does not create the final installed gtm
-   # instead it stages gtm for distribution change the cmake_install_prefix
    # to place the staged files in a local directory to install gtm you must cd to that installed directory and execute the configure script
    #
    #     -d cmake_install_prefixpath=$pwd/package
