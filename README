@@ -1,80 +1,80 @@
-All software in this package is part of FIS GT.M (http://fis-gtm.com)
-which is Copyright 2026 Fidelity Information Services, Inc., and
-provided to you under the terms of a license. If there is a COPYING
-file included in this package, it contains the terms of the license under
-which the package is provided to you. If there is not a COPYING file in
-the package, you must ensure that your use of FIS GT.M complies with the
-license under which it is provided. If you are unsure as to the terms of
-your license, please consult with the entity that provided you with the
-package.
+all software in this package is part of fis gtm http//fis-gtmcom
+which is copyright 2026 fidelity information services inc and
+provided to you under the terms of a license if there is a copying
+file included in this package it contains the terms of the license under
+which the package is provided to you if there is not a copying file in
+the package you must ensure that your use of fis gtm complies with the
+license under which it is provided if you are unsure as to the terms of
+your license please consult with the entity that provided you with the
+package
 
-GT.M relies on CMake to generate the Makefiles to build GT.M from source. The
-prerequisites are CMake (at least 3.22.1), GNU make (at least 3.82), Linux
-x86_64, libraries and development files for libz, Unicode(R), OpenSSL and GPG.
-Amazon Linux 2023, Debian 12, Ubuntu 22.04/24.04 LTS and RHEL 8 and 9 were used
-to do the test builds for this distribution. The default ICU and GPG packages
-were taken from the distribution repositories.
+gtm relies on cmake to generate the makefiles to build gtm from source the
+prerequisites are cmake at least 3221 gnu make at least 382 linux
+x86_64 libraries and development files for libz unicoder openssl and gpg
+amazon linux 2023 debian 12 ubuntu 2204/2404 lts and rhel 8 and 9 were used
+to do the test builds for this distribution the default icu and gpg packages
+were taken from the distribution repositories
 
-To build GT.M for Linux, do the following steps:
+to build gtm for linux do the following steps
 
-1. Fulfill the pre-requisites
-   Install developement libraries
-   cmake tcsh {libconfig,libelf,libgcrypt,libgpg-error,libgpgme11,libicu,libncurses,libssl,zlib1g}-dev
-   There may be other library dependencies or the packages may have different names
-   If CMake issues a NOTFOUND error, please see the FAQ below.
+1 fulfill the pre-requisites
+   install developement libraries
+   cmake tcsh libconfiglibelflibgcryptlibgpg-errorlibgpgme11libiculibncurseslibsslzlib1g-dev
+   there may be other library dependencies or the packages may have different names
+   if cmake issues a notfound error please see the faq below
 
-2. Unpack the GT.M sources
-   The GT.M source tarball extracts to a directory with the version number in
-   the name, fis-gtm-V7.1-011
-   $ tar xfz fis-gtm-V7.1-011.tar.gz
-   $ cd fis-gtm-V7.1-011
+2 unpack the gtm sources
+   the gtm source tarball extracts to a directory with the version number in
+   the name fis-gtm-v71-011
+   $ tar xfz fis-gtm-v71-011targz
+   $ cd fis-gtm-v71-011
 
-   You should find this README, LICENSE, COPYING and CMakeLists.txt file and
-   sr_* source directories.
+   you should find this readme license copying and cmakeliststxt file and
+   sr_ source directories
 
-3. Building GT.M -
-   <fis-gtm-build> can be a sub directory of the source directory,
-   fis-gtm-V7.1-011, or any other valid path.
+3 building gtm -
+   <fis-gtm-build> can be a sub directory of the source directory
+   fis-gtm-v71-011 or any other valid path
 
    $ mkdir <fis-gtm-build>
    $ cd <fis-gtm-build>
 
-   # [optional] If you installed GT.M, provide the directory path to cmake
-   #   -D GTM_DIST:PATH=$gtm_dist
+   # optional if you installed gtm provide the directory path to cmake
+   #   -d gtm_distpath=$gtm_dist
    #
-   # By default the build produces release versions of GT.M. To build a debug
-   # version of GT.M supply the following parameter to cmake
-   #     -D CMAKE_BUILD_TYPE=DEBUG
+   # by default the build produces release versions of gtm to build a debug
+   # version of gtm supply the following parameter to cmake
+   #     -d cmake_build_type=debug
    #
-   # Note that the cmake install does not create the final installed GT.M.
-   # Instead, it stages GT.M for distribution. Change the CMAKE_INSTALL_PREFIX
-   # to place the staged files in a local directory. To install GT.M, you must
-   # cd to that installed directory and execute the configure script.
+   # note that the cmake install does not create the final installed gtm
+   # instead it stages gtm for distribution change the cmake_install_prefix
+   # to place the staged files in a local directory to install gtm you must
+   # cd to that installed directory and execute the configure script
    #
-   #     -D CMAKE_INSTALL_PREFIX:PATH=${PWD}/package
+   #     -d cmake_install_prefixpath=$pwd/package
    #
-   $ cmake -D CMAKE_INSTALL_PREFIX:PATH=${PWD}/package <path to>/fis-gtm-V7.1-011
+   $ cmake -d cmake_install_prefixpath=$pwd/package <path to>/fis-gtm-v71-011
 
    $ make
 
    $ make install
 
-   $ cd package/lib/fis-gtm/V7.1-011_x86_64
+   $ cd package/lib/fis-gtm/v71-011_x86_64
 
-   # Now you are ready to install GT.M. Answer a few questions and install it.
-   # The recommended installation path is /opt/fis-gtm/V7.1-011_x86_64
+   # now you are ready to install gtm answer a few questions and install it
+   # the recommended installation path is /opt/fis-gtm/v71-011_x86_64
 
-   $ sudo ./configure
+   $ sudo /configure
 
    $ make clean
 
-4. Packaging GT.M -
-   Create a tar file from the installed directory
+4 packaging gtm -
+   create a tar file from the installed directory
 
-FAQ:
-- The CMake build fails with the following message followed by one or more cases.
-	CMake Error: The following variables are used in this project, but they are set to NOTFOUND.
-	Please set them or make sure they are set and tested correctly in the CMake files:
-  This indicates that required libraries are not found. Please consult the list
-  of libraries and check your distributions package manager.
+faq
+- the cmake build fails with the following message followed by one or more cases
+	cmake error the following variables are used in this project but they are set to notfound
+	please set them or make sure they are set and tested correctly in the cmake files
+  this indicates that required libraries are not found please consult the list
+  of libraries and check your distributions package manager
 
