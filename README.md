@@ -8,15 +8,15 @@ to build gtm from source sudo the following after meeting the prereqs
 
 `$ cd <fis-gtm-build>`
 
-`$ cmake -d cmake_install_prefixpath=$pwd/package <path to>/fis-gtm-v71-011`
+`$ cmake -d cmake_install_prefixpath=$pwd/package <path to>/fis-gtm-v7.1-011`
 
 `$ make`
 
 `$ make install`
 
-`$ cd package/lib/fis-gtm/v71-011_x86_64`
+`$ cd package/lib/fis-gtm/v7.1-011_x86_64`
 
-`# now you are ready to install gtm one recommended installation path is /opt/fis-gtm/v71-011_x86_64`
+`# now you are ready to install gt.m V7.1-011 somerwhere like /opt/fis-gtm/v7.1-011_x86_64`
 
 `$ ./configure`
 
