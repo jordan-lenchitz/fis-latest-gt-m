@@ -1,0 +1,34 @@
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;								;
+; Copyright (c) 1987-2019 Fidelity National Information		;
+; Services, Inc. and/or its subsidiaries. All rights reserved.	;
+;								;
+;	This source code contains the intellectual property	;
+;	of its copyright holder(s), and is made available	;
+;	under a license.  If you do not know the terms of	;
+;	the license, please stop and do not read further.	;
+;								;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+%DH	;GT.M %DH utility - decimal to hexadecimal conversion program
+	;invoke with %DH in decimal and %DL digits to return %DH in hexadecimal
+	;invoke at INT to execute interactively
+	;invoke at FUNC as an extrinsic function
+	;if you make heavy use of this routine, consider $ZCALL
+	;
+	set %DH=$$FUNC(%DH,$get(%DL,8))
+	quit
+INT	new %DL
+	read !,"Decimal: ",%DH read !,"Digits:  ",%DL set:""=%DL %DL=8 set %DH=$$FUNC(%DH,%DL)
+	q
+FUNC(d,l)
+	new h,i,s
+	set h="",l=$get(l,8),s=0
+	if "0"[$get(d) set $piece(s,0,l+1)="" quit s
+	set:"-"=$extract(d) s="F",d=$extract(d,2,9999)
+	if (18>$length(d)) for  quit:'d  set h=$extract("0123456789ABCDEF",(d#16)+1)_h,d=d\16
+	else  set h=$$CONVERTBASE^%CONVBASEUTIL(d,10,16)
+	set:(("F"=s)&("0"'=h)) h=$$CONVNEG^%CONVBASEUTIL(h,16)
+	set i=$length(h)
+	quit:l'>i h
+	set $piece(s,s,l-i+1)=""
+	quit s_h
